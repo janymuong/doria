@@ -1,0 +1,6 @@
+<network>
+  <name>doria-lan</name>
+  <forward mode='nat'/>
+  <bridge name='virbr50' stp='on' delay='0'/>
+  <ip address='192.168.50.1' netmask='255.255.255.0'/>
+</network>
