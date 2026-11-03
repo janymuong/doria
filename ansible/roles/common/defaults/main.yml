@@ -1,0 +1,13 @@
+---
+common_timezone: Africa/Nairobi
+
+common_packages:
+  - curl
+  - vim
+  - htop
+  - tmux
+  - tcpdump
+  - traceroute
+  - mtr-tiny
+  - bind9-dnsutils
+  - rsync

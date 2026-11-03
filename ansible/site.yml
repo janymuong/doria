@@ -1,0 +1,6 @@
+---
+- name: Baseline for every lab host
+  hosts: lab
+  become: true
+  roles:
+    - common
