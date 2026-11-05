@@ -1,0 +1,34 @@
+---
+- name: Install prometheus
+  ansible.builtin.apt:
+    name: prometheus
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure prometheus arguments
+  ansible.builtin.copy:
+    dest: /etc/default/prometheus
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (role: prometheus)
+      ARGS="--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path={{ prometheus_data_dir }} --storage.tsdb.retention.time={{ prometheus_retention }} --web.listen-address={{ prometheus_listen }}"
+  notify: Restart prometheus
+
+- name: Write the scrape configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: root
+    group: root
+    mode: "0644"
+    validate: promtool check config %s
+  notify: Reload prometheus
+
+- name: Enable and start prometheus
+  ansible.builtin.service:
+    name: prometheus
+    state: started
+    enabled: true
