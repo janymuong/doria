@@ -1,0 +1,55 @@
+---
+- name: Install packages needed to manage the Grafana apt repository
+  ansible.builtin.apt:
+    name:
+      - python3-debian
+      - ca-certificates
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Add the Grafana apt repository
+  ansible.builtin.deb822_repository:
+    name: grafana
+    types: deb
+    uris: https://apt.grafana.com
+    suites: stable
+    components: main
+    signed_by: https://apt.grafana.com/gpg.key
+    state: present
+  register: grafana_repo
+
+- name: Refresh the apt cache when the repository changed
+  ansible.builtin.apt:
+    update_cache: true
+  when: grafana_repo is changed
+
+- name: Install Grafana
+  ansible.builtin.apt:
+    name: grafana
+    state: present
+
+- name: Provision the Prometheus datasource
+  ansible.builtin.copy:
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+    content: |
+      # Managed by Ansible (role: grafana)
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          uid: prometheus
+          type: prometheus
+          access: proxy
+          url: {{ grafana_prometheus_url }}
+          isDefault: true
+          editable: false
+  notify: Restart grafana
+
+- name: Enable and start Grafana
+  ansible.builtin.service:
+    name: grafana-server
+    state: started
+    enabled: true
