@@ -5,3 +5,9 @@
   roles:
     - common
     - node_exporter
+
+- name: Monitoring server
+  hosts: monitoring
+  become: true
+  roles:
+    - prometheus
