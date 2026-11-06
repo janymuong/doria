@@ -53,3 +53,40 @@
     name: grafana-server
     state: started
     enabled: true
+
+- name: Create the dashboard directory
+  ansible.builtin.file:
+    path: "{{ grafana_dashboard_dir }}"
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: "0755"
+
+- name: Provision the dashboard provider
+  ansible.builtin.copy:
+    dest: /etc/grafana/provisioning/dashboards/doria.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+    content: |
+      # Managed by Ansible (role: grafana)
+      apiVersion: 1
+      providers:
+        - name: doria
+          orgId: 1
+          folder: Doria
+          type: file
+          disableDeletion: true
+          allowUiUpdates: false
+          updateIntervalSeconds: 30
+          options:
+            path: {{ grafana_dashboard_dir }}
+  notify: Restart grafana
+
+- name: Install the Node Exporter Full dashboard
+  ansible.builtin.copy:
+    src: node-exporter-full.json
+    dest: "{{ grafana_dashboard_dir }}/node-exporter-full.json"
+    owner: grafana
+    group: grafana
+    mode: "0644"
