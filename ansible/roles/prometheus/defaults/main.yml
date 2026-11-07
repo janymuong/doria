@@ -3,3 +3,17 @@ prometheus_scrape_interval: 15s
 prometheus_retention: 15d
 prometheus_listen: "0.0.0.0:9090"
 prometheus_data_dir: /var/lib/prometheus/metrics2
+
+prometheus_probe_icmp_targets:
+  - { name: gateway, address: 192.168.50.1 }
+  - { name: internet, address: 1.1.1.1 }
+
+prometheus_probe_http_targets:
+  - { name: prometheus, url: "http://127.0.0.1:9090/-/ready" }
+  - { name: grafana, url: "http://127.0.0.1:3000/api/health" }
+
+prometheus_probe_http_external_targets:
+  - { name: debian-mirror, url: "http://deb.debian.org/debian/dists/trixie/InRelease" }
+
+prometheus_probe_dns_targets:
+  - { name: cloudflare, address: "1.1.1.1" }

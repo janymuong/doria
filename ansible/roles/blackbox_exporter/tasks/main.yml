@@ -1,0 +1,34 @@
+---
+- name: Install blackbox exporter
+  ansible.builtin.apt:
+    name: prometheus-blackbox-exporter
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Write the probe modules
+  ansible.builtin.copy:
+    src: blackbox.yml
+    dest: /etc/prometheus/blackbox.yml
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/prometheus-blackbox-exporter --config.check --config.file=%s
+  notify: Restart blackbox exporter
+
+- name: Configure blackbox exporter arguments
+  ansible.builtin.copy:
+    dest: /etc/default/prometheus-blackbox-exporter
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (role: blackbox_exporter)
+      ARGS="--config.file=/etc/prometheus/blackbox.yml --web.listen-address={{ blackbox_exporter_listen }}"
+  notify: Restart blackbox exporter
+
+- name: Enable and start blackbox exporter
+  ansible.builtin.service:
+    name: prometheus-blackbox-exporter
+    state: started
+    enabled: true

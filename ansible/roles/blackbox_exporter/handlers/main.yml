@@ -1,0 +1,5 @@
+---
+- name: Restart blackbox exporter
+  ansible.builtin.service:
+    name: prometheus-blackbox-exporter
+    state: restarted

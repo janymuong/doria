@@ -10,5 +10,6 @@
   hosts: monitoring
   become: true
   roles:
+    - blackbox_exporter
     - prometheus
     - grafana
