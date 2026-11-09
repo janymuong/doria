@@ -1,0 +1,88 @@
+---
+- name: Install alertmanager
+  ansible.builtin.apt:
+    name: prometheus-alertmanager
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the alertmanager data directory
+  ansible.builtin.file:
+    path: "{{ alertmanager_data_dir }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: "0755"
+
+- name: Write the alertmanager configuration
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: /etc/prometheus/alertmanager.yml
+    owner: root
+    group: prometheus
+    mode: "0640"
+    validate: amtool check-config %s
+  notify: Restart alertmanager
+
+- name: Configure alertmanager arguments
+  ansible.builtin.copy:
+    dest: /etc/default/prometheus-alertmanager
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (role: alertmanager)
+      ARGS="--config.file=/etc/prometheus/alertmanager.yml --storage.path={{ alertmanager_data_dir }} --web.listen-address={{ alertmanager_listen }} --cluster.listen-address="
+  notify: Restart alertmanager
+
+- name: Install the alert logger
+  ansible.builtin.copy:
+    src: alert-logger.py
+    dest: /usr/local/bin/alert-logger.py
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart alert logger
+
+- name: Install the alert logger service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/alert-logger.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Write Alertmanager webhooks to the journal
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/bin/python3 /usr/local/bin/alert-logger.py
+      Environment=PYTHONUNBUFFERED=1
+      DynamicUser=yes
+      NoNewPrivileges=yes
+      ProtectSystem=strict
+      ProtectHome=yes
+      PrivateTmp=yes
+      Restart=on-failure
+
+      [Install]
+      WantedBy=multi-user.target
+  register: alert_logger_unit
+  notify: Restart alert logger
+
+- name: Reload systemd when the unit file changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: alert_logger_unit is changed
+
+- name: Enable and start the alert logger
+  ansible.builtin.service:
+    name: alert-logger
+    state: started
+    enabled: true
+
+- name: Enable and start alertmanager
+  ansible.builtin.service:
+    name: prometheus-alertmanager
+    state: started
+    enabled: true

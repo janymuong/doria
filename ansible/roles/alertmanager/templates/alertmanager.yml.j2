@@ -1,0 +1,26 @@
+# Managed by Ansible (role: alertmanager)
+route:
+  receiver: local-log
+  group_by: [alertname]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 4h
+
+receivers:
+  - name: local-log
+    webhook_configs:
+      - url: "{{ alertmanager_webhook_url }}"
+        send_resolved: true
+
+inhibit_rules:
+  # A machine that doesn't answer ping explains why its exporter is silent
+  - source_matchers:
+      - 'alertname="HostUnreachable"'
+    target_matchers:
+      - 'alertname="NodeExporterDown"'
+    equal: [host]
+  # If the gateway is down, the internet being unreachable is no news
+  - source_matchers:
+      - 'alertname="GatewayUnreachable"'
+    target_matchers:
+      - 'alertname="InternetUnreachable"'

@@ -17,6 +17,7 @@
   become: true
   roles:
     - blackbox_exporter
+    - alertmanager
     - prometheus
     - grafana
 

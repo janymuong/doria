@@ -1,0 +1,4 @@
+---
+alertmanager_listen: "0.0.0.0:9093"
+alertmanager_data_dir: /var/lib/prometheus/alertmanager
+alertmanager_webhook_url: "http://127.0.0.1:9199/"
