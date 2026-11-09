@@ -1,0 +1,15 @@
+---
+dnsmasq_interface: enp1s0
+dnsmasq_listen_address: 192.168.50.11
+dnsmasq_domain: doria.internal
+dnsmasq_gateway: 192.168.50.1
+dnsmasq_netmask: 255.255.255.0
+dnsmasq_dhcp_range_start: 192.168.50.100
+dnsmasq_dhcp_range_end: 192.168.50.199
+dnsmasq_lease_time: 12h
+dnsmasq_upstream_dns:
+  - 1.1.1.1
+  - 9.9.9.9
+dnsmasq_extra_records:
+  - { name: gateway, ip: 192.168.50.1 }
+dnsmasq_dhcp_reservations: []

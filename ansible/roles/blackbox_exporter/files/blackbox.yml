@@ -29,3 +29,14 @@ modules:
       query_type: A
       valid_rcodes:
         - NOERROR
+
+  dns_local:
+    prober: dns
+    timeout: 5s
+    dns:
+      preferred_ip_protocol: ip4
+      transport_protocol: udp
+      query_name: mon.doria.internal
+      query_type: A
+      valid_rcodes:
+        - NOERROR

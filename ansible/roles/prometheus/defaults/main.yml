@@ -17,3 +17,6 @@ prometheus_probe_http_external_targets:
 
 prometheus_probe_dns_targets:
   - { name: cloudflare, address: "1.1.1.1" }
+
+prometheus_probe_dns_local_targets:
+  - { name: srv-dns, address: "192.168.50.11" }

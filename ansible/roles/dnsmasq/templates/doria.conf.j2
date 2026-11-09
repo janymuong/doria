@@ -1,0 +1,37 @@
+# Managed by Ansible (role: dnsmasq)
+
+# Scope: only the lab interface
+interface={{ dnsmasq_interface }}
+bind-interfaces
+
+# DNS
+domain={{ dnsmasq_domain }}
+local=/{{ dnsmasq_domain }}/
+domain-needed
+bogus-priv
+no-hosts
+no-resolv
+{% for s in dnsmasq_upstream_dns %}
+server={{ s }}
+{% endfor %}
+cache-size=1000
+
+# Names come from the Ansible inventory
+{% for host in groups['lab'] %}
+host-record={{ host }}.{{ dnsmasq_domain }},{{ hostvars[host]['ansible_host'] }}
+{% endfor %}
+{% for r in dnsmasq_extra_records %}
+host-record={{ r.name }}.{{ dnsmasq_domain }},{{ r.ip }}
+{% endfor %}
+
+# DHCP
+dhcp-authoritative
+dhcp-range={{ dnsmasq_dhcp_range_start }},{{ dnsmasq_dhcp_range_end }},{{ dnsmasq_netmask }},{{ dnsmasq_lease_time }}
+dhcp-option=option:router,{{ dnsmasq_gateway }}
+dhcp-option=option:dns-server,{{ dnsmasq_listen_address }}
+{% for r in dnsmasq_dhcp_reservations %}
+dhcp-host={{ r.mac }},{{ r.ip }}
+{% endfor %}
+
+# Log every DHCP exchange to the journal
+log-dhcp

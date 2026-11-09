@@ -6,6 +6,12 @@
     - common
     - node_exporter
 
+- name: DHCP and DNS server
+  hosts: servers
+  become: true
+  roles:
+    - dnsmasq
+
 - name: Monitoring server
   hosts: monitoring
   become: true
@@ -13,3 +19,9 @@
     - blackbox_exporter
     - prometheus
     - grafana
+
+- name: Clients take their address from DHCP
+  hosts: clients
+  become: true
+  roles:
+    - dhcp_client

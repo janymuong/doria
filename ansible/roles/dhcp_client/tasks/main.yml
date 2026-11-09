@@ -1,0 +1,23 @@
+---
+- name: Switch the interface from a static address to DHCP
+  ansible.builtin.copy:
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+    content: |
+      # Managed by Ansible (role: dhcp_client)
+      source /etc/network/interfaces.d/*
+
+      auto lo
+      iface lo inet loopback
+
+      allow-hotplug {{ network_interface }}
+      iface {{ network_interface }} inet dhcp
+  register: interfaces_file
+
+- name: Reboot to apply the new network configuration
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  when: interfaces_file is changed

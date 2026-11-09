@@ -96,3 +96,22 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: "localhost:9115"
+
+  - job_name: blackbox_dns_local
+    metrics_path: /probe
+    scrape_interval: 30s
+    params:
+      module: [dns_local]
+    static_configs:
+{% for t in prometheus_probe_dns_local_targets %}
+      - targets: ["{{ t.address }}"]
+        labels:
+          server: "{{ t.name }}"
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "localhost:9115"
