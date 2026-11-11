@@ -6,11 +6,12 @@
     - common
     - node_exporter
 
-- name: DHCP and DNS server
+- name: Office server
   hosts: servers
   become: true
   roles:
     - dnsmasq
+    - backup
 
 - name: Monitoring server
   hosts: monitoring
