@@ -24,3 +24,8 @@ inhibit_rules:
       - 'alertname="GatewayUnreachable"'
     target_matchers:
       - 'alertname="InternetUnreachable"'
+  - source_matchers:
+      - 'alertname="NodeExporterDown"'
+    target_matchers:
+      - 'alertname="BackupMetricsMissing"'
+    equal: [host]
