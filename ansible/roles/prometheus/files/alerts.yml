@@ -76,3 +76,45 @@ groups:
           severity: warning
         annotations:
           summary: '{{ $labels.host }} has {{ $value | printf "%.0f" }}% of its memory available'
+
+  - name: backups
+    rules:
+      - alert: BackupFailed
+        expr: doria_backup_success == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The last backup on {{ $labels.host }} failed"
+
+      - alert: BackupStale
+        expr: time() - doria_backup_last_success_timestamp_seconds > 26 * 3600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.host }}: no successful backup for {{ $value | humanizeDuration }}'
+
+      - alert: RestoreTestFailed
+        expr: doria_restore_test_success == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The last restore test on {{ $labels.host }} failed, the newest backup may not be usable"
+
+      - alert: RestoreTestStale
+        expr: time() - doria_restore_test_last_success_timestamp_seconds > 26 * 3600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.host }}: no passing restore test for {{ $value | humanizeDuration }}'
+
+      - alert: BackupMetricsMissing
+        expr: absent(doria_backup_success{host="srv"})
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "srv is not reporting backup metrics, the job may never have run"
