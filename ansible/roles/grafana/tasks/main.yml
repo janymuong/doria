@@ -90,3 +90,11 @@
     owner: grafana
     group: grafana
     mode: "0644"
+
+- name: Install the backup dashboard
+  ansible.builtin.copy:
+    src: doria-backups.json
+    dest: "{{ grafana_dashboard_dir }}/doria-backups.json"
+    owner: grafana
+    group: grafana
+    mode: "0644"
