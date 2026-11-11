@@ -1,0 +1,62 @@
+---
+- name: Create the share, backup and state directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ backup_source }}", owner: ops, mode: "0775" }
+    - { path: "{{ backup_dir }}", owner: root, mode: "0750" }
+    - { path: "{{ backup_state_dir }}", owner: root, mode: "0755" }
+
+- name: Write the backup settings
+  ansible.builtin.copy:
+    dest: /etc/default/doria-backup
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (role: backup)
+      BACKUP_SOURCE={{ backup_source }}
+      BACKUP_DIR={{ backup_dir }}
+      BACKUP_KEEP={{ backup_keep }}
+      BACKUP_STATE_DIR={{ backup_state_dir }}
+      BACKUP_METRICS_DIR={{ backup_metrics_dir }}
+
+- name: Install the backup script
+  ansible.builtin.copy:
+    src: doria-backup
+    dest: /usr/local/bin/doria-backup
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the systemd units
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - doria-backup.service
+    - doria-backup.timer
+    - doria-restore-test.service
+    - doria-restore-test.timer
+  register: backup_units
+
+- name: Reload systemd when a unit file changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: backup_units is changed
+
+- name: Enable and start the timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - doria-backup.timer
+    - doria-restore-test.timer

@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# Managed by Ansible (role: backup)
+# Usage: doria-backup backup | restore-test
+set -euo pipefail
+umask 077
+
+[ -r /etc/default/doria-backup ] && . /etc/default/doria-backup
+: "${BACKUP_SOURCE:?}" "${BACKUP_DIR:?}" "${BACKUP_METRICS_DIR:?}" "${BACKUP_STATE_DIR:?}"
+BACKUP_KEEP="${BACKUP_KEEP:-7}"
+
+START="$(date +%s)"
+RESTORE_TMP=""
+MODE="${1:-}"
+
+write_metrics() {
+    local name="$1" tmp
+    tmp="$(mktemp "$BACKUP_METRICS_DIR/.$name.XXXXXX")"
+    cat > "$tmp"
+    chmod 0644 "$tmp"
+    mv "$tmp" "$BACKUP_METRICS_DIR/$name"
+}
+
+newest_archive() {
+    ls -1 "$BACKUP_DIR"/share-*.tar.gz 2>/dev/null | sort | tail -n 1 || true
+}
+
+backup_metrics() {   # args: success duration
+    local newest last_ok=0 size=0 files=0
+    newest="$(newest_archive)"
+    if [ -n "$newest" ]; then
+        last_ok="$(stat -c %Y "$newest")"
+        size="$(stat -c %s "$newest")"
+        files="$(wc -l < "$newest.manifest")"
+    fi
+    {
+        echo "# HELP doria_backup_success 1 if the last backup run succeeded."
+        echo "# TYPE doria_backup_success gauge"
+        echo "doria_backup_success $1"
+        echo "# HELP doria_backup_last_success_timestamp_seconds When the newest archive was written."
+        echo "# TYPE doria_backup_last_success_timestamp_seconds gauge"
+        echo "doria_backup_last_success_timestamp_seconds $last_ok"
+        echo "# HELP doria_backup_duration_seconds How long the last run took."
+        echo "# TYPE doria_backup_duration_seconds gauge"
+        echo "doria_backup_duration_seconds $2"
+        echo "# HELP doria_backup_size_bytes Size of the newest archive."
+        echo "# TYPE doria_backup_size_bytes gauge"
+        echo "doria_backup_size_bytes $size"
+        echo "# HELP doria_backup_files Number of files in the newest archive."
+        echo "# TYPE doria_backup_files gauge"
+        echo "doria_backup_files $files"
+    } | write_metrics doria_backup.prom
+}
+
+restore_metrics() {   # args: success files duration
+    local last_ok=0
+    if [ -r "$BACKUP_STATE_DIR/restore_last_success" ]; then
+        last_ok="$(cat "$BACKUP_STATE_DIR/restore_last_success")"
+    fi
+    {
+        echo "# HELP doria_restore_test_success 1 if the last restore test passed."
+        echo "# TYPE doria_restore_test_success gauge"
+        echo "doria_restore_test_success $1"
+        echo "# HELP doria_restore_test_last_success_timestamp_seconds When a restore test last passed."
+        echo "# TYPE doria_restore_test_last_success_timestamp_seconds gauge"
+        echo "doria_restore_test_last_success_timestamp_seconds $last_ok"
+        echo "# HELP doria_restore_test_files_checked Files verified in the last run."
+        echo "# TYPE doria_restore_test_files_checked gauge"
+        echo "doria_restore_test_files_checked $2"
+        echo "# HELP doria_restore_test_duration_seconds How long the last run took."
+        echo "# TYPE doria_restore_test_duration_seconds gauge"
+        echo "doria_restore_test_duration_seconds $3"
+    } | write_metrics doria_restore_test.prom
+}
+
+do_backup() {
+    local ts archive base
+    ts="$(date +%Y%m%d-%H%M%S)"
+    archive="$BACKUP_DIR/share-$ts.tar.gz"
+    base="$(basename "$archive")"
+
+    if [ ! -d "$BACKUP_SOURCE" ]; then
+        echo "backup source $BACKUP_SOURCE does not exist" >&2
+        return 1
+    fi
+    mkdir -p "$BACKUP_DIR"
+
+    (cd "$BACKUP_SOURCE" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum) > "$archive.manifest.tmp"
+    if [ ! -s "$archive.manifest.tmp" ]; then
+        rm -f -- "$archive.manifest.tmp"
+        echo "no files found in $BACKUP_SOURCE, refusing to write an empty backup" >&2
+        return 1
+    fi
+    tar -C "$BACKUP_SOURCE" -czf "$archive.tmp" .
+    mv "$archive.tmp" "$archive"
+    mv "$archive.manifest.tmp" "$archive.manifest"
+    (cd "$BACKUP_DIR" && sha256sum "$base" > "$base.sha256")
+
+    ls -1 "$BACKUP_DIR"/share-*.tar.gz | sort -r | tail -n +"$((BACKUP_KEEP + 1))" | while read -r old; do
+        rm -f -- "$old" "$old.sha256" "$old.manifest"
+    done
+
+    backup_metrics 1 "$(( $(date +%s) - START ))"
+    echo "backup ok: $base, $(wc -l < "$archive.manifest") files, $(stat -c %s "$archive") bytes"
+}
+
+do_restore_test() {
+    local archive base expected found
+    archive="$(newest_archive)"
+    if [ -z "$archive" ]; then
+        echo "no archive found in $BACKUP_DIR" >&2
+        return 1
+    fi
+    base="$(basename "$archive")"
+
+    if ! (cd "$BACKUP_DIR" && sha256sum --check --status "$base.sha256"); then
+        echo "checksum mismatch: $base was damaged after it was written" >&2
+        return 1
+    fi
+
+    RESTORE_TMP="$(mktemp -d "$BACKUP_STATE_DIR/restore.XXXXXX")"
+    tar -xzf "$archive" -C "$RESTORE_TMP"
+
+    expected="$(wc -l < "$archive.manifest")"
+    found="$(find "$RESTORE_TMP" -type f | wc -l)"
+    if [ "$expected" -eq 0 ] || [ "$expected" -ne "$found" ]; then
+        echo "file count problem in $base: manifest lists $expected, restore produced $found" >&2
+        return 1
+    fi
+
+    if ! (cd "$RESTORE_TMP" && sha256sum --check --quiet "$archive.manifest"); then
+        echo "restored files do not match the manifest for $base" >&2
+        return 1
+    fi
+
+    date +%s > "$BACKUP_STATE_DIR/restore_last_success"
+    restore_metrics 1 "$found" "$(( $(date +%s) - START ))"
+    echo "restore test ok: $base, $found files verified"
+}
+
+cleanup() {
+    local rc=$?
+    if [ -n "$RESTORE_TMP" ]; then
+        rm -rf -- "$RESTORE_TMP"
+    fi
+    if [ "$rc" -ne 0 ]; then
+        case "$MODE" in
+            backup) backup_metrics 0 "$(( $(date +%s) - START ))" || true ;;
+            restore-test) restore_metrics 0 0 "$(( $(date +%s) - START ))" || true ;;
+        esac
+    fi
+    exit "$rc"
+}
+trap cleanup EXIT
+
+case "$MODE" in
+    backup) do_backup ;;
+    restore-test) do_restore_test ;;
+    *)
+        echo "usage: $0 backup | restore-test" >&2
+        exit 2
+        ;;
+esac

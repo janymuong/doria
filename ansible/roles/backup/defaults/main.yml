@@ -1,0 +1,7 @@
+---
+backup_source: /srv/share
+backup_dir: /var/backups/doria
+backup_keep: 7
+backup_state_dir: /var/lib/doria-backup
+# must match the textfile directory in the node_exporter role
+backup_metrics_dir: /var/lib/prometheus/node-exporter

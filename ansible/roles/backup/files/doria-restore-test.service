@@ -1,0 +1,9 @@
+[Unit]
+Description=Restore the newest backup into a temporary directory and verify it
+After=doria-backup.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/doria-backup restore-test
+Nice=10
+IOSchedulingClass=idle
