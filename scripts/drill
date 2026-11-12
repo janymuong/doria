@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Practice tickets for the Doria lab.
+#   scripts/drill open [1-6]   open a ticket (a random one if no number is given)
+#   scripts/drill time         minutes since the ticket was opened
+#   scripts/drill close        undo every fault and re-run the playbook
+# Every fault is temporary. Rebooting the VM involved also clears it.
+set -uo pipefail
+export LIBVIRT_DEFAULT_URI=qemu:///system
+cd "$(dirname "$0")/.."
+
+SSH="ssh -q -t"
+STATE="$HOME/.cache/doria-drill"
+mkdir -p "$(dirname "$STATE")"
+
+link_state() {   # $1 = VM name, $2 = up | down
+    local mac
+    mac="$(virsh domiflist "$1" | awk '/doria-lan/ {print $5}')"
+    virsh domif-setlink "$1" "$mac" "$2"
+}
+
+open_ticket() {
+    case "$1" in
+        1)
+            $SSH client "sudo ip route replace default via 192.168.50.99"
+            echo 'TICKET: From the staff laptop (client): "The internet is down. Everything else seems fine."'
+            ;;
+        2)
+            link_state srv down
+            echo 'TICKET: "Nobody can reach the office server, and names have stopped resolving."'
+            ;;
+        3)
+            $SSH srv "sudo ip route add blackhole 192.168.50.20/32"
+            echo 'TICKET: From the staff laptop (client): "I cannot look anything up. The dashboard says the server is fine."'
+            ;;
+        4)
+            $SSH srv "sudo sh -c 'chattr +i /var/backups/doria; systemctl start doria-backup.service 2>/dev/null || true'"
+            echo 'TICKET: "Nobody touched the share, but the backup alert has fired."'
+            ;;
+        5)
+            $SSH srv "sudo systemctl stop dnsmasq && sudo systemd-run --quiet --unit=local-resolver python3 -c 'import socket,time; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.bind((\"192.168.50.11\",53)); time.sleep(10**6)'"
+            echo 'TICKET: "Names stopped resolving for everyone, and the usual fix is not working."'
+            ;;
+        6)
+            $SSH mon "sudo sh -c 'echo \"bogus: [\" >> /etc/prometheus/alertmanager.yml; systemctl restart prometheus-alertmanager 2>/dev/null || true'"
+            $SSH srv "sudo systemctl stop prometheus-node-exporter"
+            echo 'TICKET: "The dashboard shows an exporter down on srv, but nobody was told."'
+            ;;
+        *)
+            echo "usage: $0 open [1-6]" >&2
+            exit 2
+            ;;
+    esac
+}
+
+undo_everything() {
+    $SSH client "sudo sh -c 'ip route del default via 192.168.50.99 2>/dev/null; ip route show default | grep -qw 192.168.50.1 || ip route add default via 192.168.50.1 dev enp1s0'"
+    link_state srv up
+    $SSH srv "sudo sh -c 'ip route del blackhole 192.168.50.20/32 2>/dev/null; chattr -i /var/backups/doria; systemctl stop local-resolver 2>/dev/null; systemctl reset-failed local-resolver 2>/dev/null; systemctl start prometheus-node-exporter; systemctl start dnsmasq'"
+    $SSH mon "sudo systemctl reset-failed prometheus-alertmanager 2>/dev/null"
+    (cd ansible && ansible-playbook site.yml --ask-become-pass)
+}
+
+minutes_open() {
+    echo "$(( ($(date +%s) - $(cat "$STATE")) / 60 )) minutes since the ticket was opened"
+}
+
+case "${1:-}" in
+    open)
+        if [ -r "$STATE" ]; then
+            echo "A ticket is already open. Run: $0 close" >&2
+            exit 1
+        fi
+        n="${2:-$(shuf -i 1-6 -n 1)}"
+        open_ticket "$n" && date +%s > "$STATE"
+        ;;
+    time)
+        if [ -r "$STATE" ]; then minutes_open; else echo "no ticket open"; fi
+        ;;
+    close)
+        if [ -r "$STATE" ]; then minutes_open; fi
+        undo_everything
+        rm -f "$STATE"
+        ;;
+    *)
+        echo "usage: $0 open [1-6] | time | close" >&2
+        exit 2
+        ;;
+esac
