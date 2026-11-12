@@ -34,7 +34,7 @@ Unit node-exporter.service could not be found.
 ops@srv:~$ ls
 ops@srv:~$ ls -al
 ```
- couldnt figure anything from this; probably a deadend
+ couldnt figure anything from this; probably a deadend(correction no listener on port 9100, not a deadend exactly)
 
 I ran the journal command:
 ```sh
@@ -68,15 +68,16 @@ ops@srv:~$ logout
 Connection to 192.168.50.11 closed.
 ```
 
-so from this node exporter was deactivated/service stopped, and so it has to be brought up using systemd (but can be done using ansible for an effective solutin)
+so from this node exporter was deactivated/service stopped/deliberately, and so it has to be brought up using systemd (but can be done using ansible for an effective solutin)
 ## Cause
-One or two sentences.
+Two faults. The exporter on srv had been stopped by hand (systemctl stop, visible in the sudo log).
+Separately, a line had been added by hand to /etc/prometheus/alertmanager.yml on mon, so Alertmanager
+would not start and no alert was delivered.
 node exporter was stopped
 
 ## Fix
-The exact commands.
-sudo systemctl start prometheus-node-exporter-nvme
-ansible-playbook site.yml --ask-become-pass (nuclear fix)
+ansible-playbook site.yml --limit mon --ask-become-pass   # restores alertmanager.yml, restarts Alertmanager
+ssh -t srv 'sudo systemctl start prometheus-node-exporter'
 
 ## Check that it worked
 Grafana reported mem, cpu, io usage and the the rest of the metrics
