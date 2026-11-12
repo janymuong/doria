@@ -3,7 +3,6 @@
 a small office network that watches itself
 
 > three vms on one linux host, configured with ansible: dhcp and dns, monitoring and alerts, and a nightly backup that is restored and checked every night.  
-
 > more: find files and run the network in [context.md](context.md) and in the [walkthrough](./walkthrough/) directory.
 
 ```mermaid
