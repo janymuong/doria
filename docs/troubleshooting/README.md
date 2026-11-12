@@ -14,3 +14,15 @@ Work from the bottom up and stop at the first layer that fails.
 
 Change one thing at a time. Write down what you tried, including what did not help.
 Monitoring tells you that something is wrong. It does not always tell you where, and sometimes it says nothing.
+
+## What should be listening
+
+Compare `ss -tulnp` against this before deciding anything is wrong.
+
+| Host | Port | Service |
+|---|---|---|
+| all | 22/tcp | sshd |
+| all | 9100/tcp | node exporter |
+| srv | 53/udp and tcp, 67/udp | dnsmasq (DNS and DHCP) |
+| mon | 3000/tcp, 9090/tcp, 9093/tcp | Grafana, Prometheus, Alertmanager |
+| mon (loopback only) | 9115/tcp, 9199/tcp | blackbox exporter, alert logger |
