@@ -5,7 +5,7 @@ a small office network that watches itself
 > three vms on one linux host, configured with ansible: dhcp and dns, monitoring and alerts, and a nightly backup that is restored and checked every night.
 
 
-more: files, and how to run it - [context.md](context.md).
+more: find files and run it - [context.md](context.md).
 
 ```mermaid
 flowchart LR
@@ -46,7 +46,6 @@ flowchart LR
     bkp -->|metrics file| nes
 ```
 
----
 
 | tool | for |
 |---|---|
