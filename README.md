@@ -2,9 +2,10 @@
 
 a small office network that watches itself
 
-three vms on one linux host, configured with ansible: dhcp and dns, monitoring and alerts, and a nightly backup that is restored and checked every night.
+> three vms on one linux host, configured with ansible: dhcp and dns, monitoring and alerts, and a nightly backup that is restored and checked every night.
 
-what is in it, the files, how to run it and a few notes are in [context.md](context.md).
+
+more: files, and how to run it - [context.md](context.md).
 
 ```mermaid
 flowchart LR
@@ -47,7 +48,7 @@ flowchart LR
 
 ## tools
 
-| tool | used for |
+| tool | for |
 |---|---|
 | libvirt, qemu | the virtual machines and the `doria-lan` network |
 | debian 13 | the guest operating system |
