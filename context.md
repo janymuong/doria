@@ -32,3 +32,7 @@ needs a linux host with libvirt, qemu, virt-install and ansible, and about 4 gb 
 
 - this is a lab. prometheus, alertmanager and grafana run without tls, and the sudo password is typed at each run.
 - the node exporter full dashboard (grafana dashboard 1860) is used under its apache 2.0 licence.
+
+## rebuilding
+
+to rebuild from nothing, follow `walkthrough/11-rebuilding.md`. it has the exact installer answers, the fixed mac for `client`, the sample files and the checks.

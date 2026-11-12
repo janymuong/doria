@@ -22,5 +22,6 @@ The host is the gateway (192.168.50.1) and runs Ansible.
 8. `08-backups-and-restore-tests.md`
 9. `09-troubleshooting-drills.md`
 10. `10-limits-and-next-steps.md`
+11. `11-rebuilding.md`
 
 Each file says what was built, how to check it, and what went wrong. The troubleshooting notes are in `docs/troubleshooting/`.
